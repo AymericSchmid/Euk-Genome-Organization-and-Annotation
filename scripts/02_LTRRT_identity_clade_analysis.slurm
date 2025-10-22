@@ -10,12 +10,15 @@
 
 WORK_DIR=/data/users/aschmid/Euk-Genome-Organization-and-Annotation
 OUT_DIR=$WORK_DIR/TE_annotation/clades/LTRRT
+PLOT_DIR=$WORK_DIR/plots
 LTRRT_ANNOTATION=$WORK_DIR/TE_annotation/EDTA/assembly.fa.mod.EDTA.raw/assembly.fa.mod.LTR.intact.raw.gff3
 LTRRT_LIBRARY=$WORK_DIR/TE_annotation/EDTA/assembly.fa.mod.EDTA.raw/assembly.fa.mod.LTR.raw.fa
 TESORTER_IMG=/data/courses/assembly-annotation-course/CDS_annotation/containers/TEsorter_1.3.0.sif
+R_MODULE=R-bundle-IBU/2023072800-foss-2021a-R-4.2.1
 TSV_FILE=$OUT_DIR/assembly.fa.mod.LTR.raw.fa.rexdb-plant.cls.tsv
 
-mkdir -p $OUT_DIR/plots
+mkdir -p $PLOT_DIR
+mkdir -p $OUT_DIR
 
 cd $OUT_DIR
 
@@ -24,7 +27,9 @@ apptainer exec --bind /data $TESORTER_IMG \
 TEsorter \
 $LTRRT_LIBRARY -db rexdb-plant
 
-module load R-bundle-IBU/2023072800-foss-2021a-R-4.2.1 
+cd $PLOT_DIR
+
+# Plot the number of LTR-RTs in each clade with their corresponding percent identity
+module load $R_MODULE 
 Rscript $WORK_DIR/scripts/RAnalysis/02_full_length_LTRs_identity.R \
 $LTRRT_ANNOTATION $TSV_FILE \
-
