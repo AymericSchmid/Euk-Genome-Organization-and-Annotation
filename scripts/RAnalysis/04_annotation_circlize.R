@@ -43,7 +43,17 @@ filter_superfamily <- function(gff_data, superfamily, custom_ideogram) {
     return(filtered_data)
 }
 
-pdf("03_TE_density.pdf", width = 10, height = 10)
+filter_clade <- function(gff_data, clade, custom_ideogram) {
+    print(gff_data$V9)
+    filtered_data <- gff_data[gff_data$V9 == clade, ] %>%
+        as.data.frame() %>%
+        mutate(chrom = V1, start = V4, end = V5, strand = V6) %>%
+        select(chrom, start, end, strand) %>%
+        filter(chrom %in% custom_ideogram$chr)
+    return(filtered_data)
+}
+
+pdf("04_TE_density.pdf", width = 10, height = 10)
 gaps <- c(rep(1, length(custom_ideogram$chr) - 1), 5) # Add a gap between scaffolds, more gap for the last scaffold
 circos.par(start.degree = 90, gap.after = 1, track.margin = c(0, 0), gap.degree = gaps)
 # Initialize the circos plot with the custom ideogram
@@ -55,11 +65,13 @@ circos.genomicDensity(filter_superfamily(gff_data, "Copia_LTR_retrotransposon", 
 # Also plotting the top 2 most abundant superfamilies
 circos.genomicDensity(filter_superfamily(gff_data, superfams_sorted[1], custom_ideogram), count_by = "number", col = "darkblue", track.height = 0.07, window.size = 1e5)
 circos.genomicDensity(filter_superfamily(gff_data, superfams_sorted[2], custom_ideogram), count_by = "number", col = "darkorange", track.height = 0.07, window.size = 1e5)
+circos.genomicDensity(filter_clade(gff_data, "Athila", custom_ideogram), count_by = "number", col = "red", track.height = 0.07, window.size = 1e5)
+circos.genomicDensity(filter_clade(gff_data, "CRM", custom_ideogram), count_by = "number", col = "green", track.height = 0.07, window.size = 1e5)
 circos.clear()
 
 lgd <- Legend(
-    title = "Superfamily", at = c("Gypsy_LTR_retrotransposon", "Copia_LTR_retrotransposon", superfams_sorted[1], superfams_sorted[2]),
-    legend_gp = gpar(fill = c("darkgreen", "darkred", "darkblue", "darkorange"))
+    title = "Superfamily", at = c("Gypsy_LTR_retrotransposon", "Copia_LTR_retrotransposon", superfams_sorted[1], superfams_sorted[2], "Athila", "CRM"),
+    legend_gp = gpar(fill = c("darkgreen", "darkred", "darkblue", "darkorange", "red", "green"))
 )
 draw(lgd, x = unit(8, "cm"), y = unit(10, "cm"), just = c("center"))
 

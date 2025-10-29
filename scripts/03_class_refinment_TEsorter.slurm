@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-#SBATCH --cpus-per-task=1
+#SBATCH --cpus-per-task=4
 #SBATCH --mem-per-cpu=16G
 #SBATCH --time=1:00:00
 #SBATCH --partition=pibu_el8
@@ -26,16 +26,16 @@ mkdir -p $OUT_DIR
 
 module load $SEQKIT_MODULE
 # Extracting Copia and Gypsy sequences
-seqkit grep -r -p "Copia" $TE_LIB > $COPIA_SEQ_FILE
-seqkit grep -r -p "Gypsy" $TE_LIB > $GYPSY_SEQ_FILE
+#seqkit grep -r -p "Copia" $TE_LIB > $COPIA_SEQ_FILE
+#seqkit grep -r -p "Gypsy" $TE_LIB > $GYPSY_SEQ_FILE
 
 cd $OUT_DIR
 
 # Run TEsorter
-apptainer exec --bind /data $TESORTER_IMG \
-TEsorter $COPIA_SEQ_FILE -db rexdb-plant
-apptainer exec --bind /data $TESORTER_IMG \
-TEsorter $GYPSY_SEQ_FILE -db rexdb-plant
+#apptainer exec --bind /data $TESORTER_IMG \
+#TEsorter $COPIA_SEQ_FILE -db rexdb-plant
+#apptainer exec --bind /data $TESORTER_IMG \
+#TEsorter $GYPSY_SEQ_FILE -db rexdb-plant
 
 CLS_ALL="$OUT_DIR/te_clades.cls.tsv"
 {
@@ -71,12 +71,12 @@ BEGIN{
   if (match(attrs, /Name=([^;]+)/, m))      teid = m[1]
   else if (match(attrs, /Target=([^;]+)/, m)) teid = m[1]
 
+  add = ";clade="
   if (teid != "" && (teid in SF)) {
     # Append new annotations, preserving existing attributes
-    add = ";order=" ORD[teid] ";superfamily=" SF[teid]
-    if (CLA[teid] != "") add = add ";clade=" CLA[teid]
-    attrs = attrs add
+    add = add CLA[teid]
   }
+  attrs = attrs add
   $9 = attrs
   print
 }

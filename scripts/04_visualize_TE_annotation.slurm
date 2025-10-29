@@ -19,12 +19,12 @@ SAMTOOLS_IMG=/containers/apptainer/samtools-1.19.sif
 mkdir -p $PLOT_DIR
 
 # Indexing assembly
-# apptainer exec --bind /data $SAMTOOLS_IMG \
-# samtools faidx $ASSEMBLY
+apptainer exec --bind /data $SAMTOOLS_IMG \
+samtools faidx $ASSEMBLY
 
 module load $R_MODULE 
 cd $PLOT_DIR
 
 # Creating plots through R script
-Rscript $WORK_DIR/scripts/RAnalysis/03_annotation_circlize.R \
+Rscript $WORK_DIR/scripts/RAnalysis/04_annotation_circlize.R \
 $TE_ANNOTATION $ASSEMBLY_FAI
