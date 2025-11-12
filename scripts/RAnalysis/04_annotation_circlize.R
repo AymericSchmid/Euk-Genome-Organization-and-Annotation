@@ -29,7 +29,7 @@ print(superfam_counts)
 superfams_sorted <- rev(names(sort(superfam_counts)))
 
 # avoid duplicating Copia/Gypsy as "top2"
-base_sf <- c("Gypsy_LTR_retrotransposon","Copia_LTR_retrotransposon")
+base_sf <- c("Gypsy_LTR_retrotransposon","Copia_LTR_retrotransposon", "helitron")
 top2    <- setdiff(superfams_sorted, base_sf)[1:2]
 
 # ---- ideogram (top 14 scaffolds) ----
