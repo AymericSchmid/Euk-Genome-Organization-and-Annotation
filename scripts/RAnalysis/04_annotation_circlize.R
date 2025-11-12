@@ -23,88 +23,171 @@ if (length(args) == 3) {
     stop("Insufficient arguments provided. Please provide at least assembly_fai_file, te_gff_file, and out_pdf_file.")
 }
 
-# Check the superfamilies present in the GFF3 file, and their counts
-superfam_counts <- table(te_gff_data$V3)
+# ---- counts & ordering ----
+superfam_counts  <- table(te_gff_data$V3)
 print(superfam_counts)
-superfams_sorted = rev(names(sort(superfam_counts)))
+superfams_sorted <- rev(names(sort(superfam_counts)))
 
-# custom ideogram data
-## To make the ideogram data, you need to know the lengths of the scaffolds.
-## There is an index file that has the lengths of the scaffolds, the `.fai` file.
-## To generate this file you need to run the following command in bash:
-## samtools faidx assembly.fasta
-## This will generate a file named assembly.fasta.fai
-## You can then read this file in R and prepare the custom ideogram data
+# avoid duplicating Copia/Gypsy as "top2"
+base_sf <- c("Gypsy_LTR_retrotransposon","Copia_LTR_retrotransposon")
+top2    <- setdiff(superfams_sorted, base_sf)[1:2]
 
+# ---- ideogram (top 14 scaffolds) ----
 custom_ideogram <- read.table(assembly_fai_file, header = FALSE, stringsAsFactors = FALSE)
-custom_ideogram$chr <- custom_ideogram$V1
-custom_ideogram$start <- 1
-custom_ideogram$end <- custom_ideogram$V2
-custom_ideogram <- custom_ideogram[, c("chr", "start", "end")]
-custom_ideogram <- custom_ideogram[order(custom_ideogram$end, decreasing = T), ]
-sum(custom_ideogram$end[1:20])
+custom_ideogram <- custom_ideogram[, c(1,2)]
+colnames(custom_ideogram) <- c("chr","len")
+custom_ideogram <- custom_ideogram |>
+  arrange(desc(len)) |>
+  mutate(start = 1, end = len) |>
+  select(chr, start, end) |>
+  slice(1:14)
 
-# Select only the first 20 longest scaffolds, You can reduce this number if you have longer chromosome scale scaffolds
-custom_ideogram <- custom_ideogram[1:20, ]
-
-# Function to filter GFF3 data based on Superfamily (You need one track per Superfamily)
+# ---- helpers ----
 filter_superfamily <- function(te_gff_data, superfamily, custom_ideogram) {
-    filtered_data <- te_gff_data[te_gff_data$V3 == superfamily, ] %>%
-        as.data.frame() %>%
-        mutate(chrom = V1, start = V4, end = V5, strand = V6) %>%
-        select(chrom, start, end, strand) %>%
-        filter(chrom %in% custom_ideogram$chr)
-    return(filtered_data)
+  te_gff_data[te_gff_data$V3 == superfamily, ] |>
+    as.data.frame() |>
+    mutate(chrom = V1, start = as.integer(V4), end = as.integer(V5)) |>
+    select(chrom, start, end) |>
+    filter(chrom %in% custom_ideogram$chr)
 }
 
 filter_clade <- function(te_gff_data, clade, custom_ideogram) {
-    filtered_data <- te_gff_data %>%
-        mutate(clade_extracted = str_match(V9, "(?<=;clade=)[^;]+")[,1]) %>%
-        filter(!is.na(clade_extracted), clade_extracted %in% clade, V1 %in% custom_ideogram$chr) %>%
-        transmute(chrom = V1, start = as.integer(V4), end   = as.integer(V5))
-    return(filtered_data)
+  te_gff_data |>
+    mutate(clade_extracted = stringr::str_match(V9, "(?<=;clade=)[^;]+")[,1]) |>
+    filter(!is.na(clade_extracted), clade_extracted %in% clade, V1 %in% custom_ideogram$chr) |>
+    transmute(chrom = V1, start = as.integer(V4), end = as.integer(V5))
 }
 
 filter_genes <- function(gene_gff_data, custom_ideogram) {
-    filtered_data <- gene_gff_data[gene_gff_data$V3 == "gene", ] %>%
-        filter(V1 %in% custom_ideogram$chr) %>%
-        transmute(chrom = V1, start = as.integer(V4), end = as.integer(V5))
-    return(filtered_data)
+  gene_gff_data[gene_gff_data$V3 == "gene", ] |>
+    filter(V1 %in% custom_ideogram$chr) |>
+    transmute(chrom = V1, start = as.integer(V4), end = as.integer(V5))
+}
+
+ref_sector <- custom_ideogram$chr[1] 
+track_height <- 0.1
+
+okabe <- c(
+  black = "#000000", orange = "#E69F00", sky = "#56B4E9", blue = "#0072B2",
+  vermilion = "#D55E00", purple = "#CC79A7", green = "#009E73",
+  yellow = "#F0E442", grey = "#999999"
+)
+
+col_gypsy  <- "#009E73"     
+col_copia  <- "#E69F00"  
+col_top1   <- "#F0E442"       
+col_top2   <- "#B5B5B5"
+col_athila <- "#CC79A7"    
+col_crm    <- "#56B4E9"
+col_gene   <- "#333333"
+
+density_track <- function(df, col, ws = 1e5, h = 0.085,
+                          label = NULL, ref_sector = NULL,
+                          offset_mm = 0.9, cex_lab = 0.6,
+                          bending = TRUE) {
+  if (nrow(df) == 0) return(invisible(NULL))
+  circos.genomicDensity(
+    df, count_by = "number", window.size = ws,
+    col = col, border = TRUE, lwd = 0.5, baseline = "bottom",
+    track.height = h
+  )
+  if (!is.null(label) && !is.null(ref_sector)) {
+    # place a single label on the chosen sector, inside the ring
+    ti   <- get.current.track.index()
+    xlim <- get.cell.meta.data("xlim", sector.index = ref_sector, track.index = ti)
+    ylim <- get.cell.meta.data("ylim", sector.index = ref_sector, track.index = ti)
+    xmid <- mean(xlim)
+    ytop <- ylim[2]
+    y <- ytop - convert_y(offset_mm, "mm",
+                          sector.index = ref_sector, track.index = ti)
+    circos.text(xmid, y, labels = label,
+                sector.index = ref_sector, track.index = ti,
+                facing = if (bending) "bending.inside" else "inside",
+                niceFacing = TRUE, cex = cex_lab, adj = c(0.5, 1))
+  }
 }
 
 pdf(out_pdf_file, width = 10, height = 10)
-gaps <- c(rep(1, length(custom_ideogram$chr) - 1), 5) # Add a gap between scaffolds, more gap for the last scaffold
-circos.par(start.degree = 90, gap.after = 1, track.margin = c(0, 0), gap.degree = gaps)
-# Initialize the circos plot with the custom ideogram
+# ---- plotting ----
+
+gaps <- c(rep(1, nrow(custom_ideogram)))
+circos.clear()
+circos.par(
+  start.degree = 90,
+  gap.after = gaps,
+  cell.padding = c(0.002, 0.002, 0.002, 0.002),
+  track.margin = c(0.002, 0.002),
+  points.overflow.warning = FALSE
+)
 circos.genomicInitialize(custom_ideogram)
 
-# Plot te density
-circos.genomicDensity(filter_superfamily(te_gff_data, "Gypsy_LTR_retrotransposon", custom_ideogram), count_by = "number", col = "darkgreen", track.height = 0.07, window.size = 1e5)
-circos.genomicDensity(filter_superfamily(te_gff_data, "Copia_LTR_retrotransposon", custom_ideogram), count_by = "number", col = "darkred", track.height = 0.07, window.size = 1e5)
-# Also plotting the top 2 most abundant superfamilies
-circos.genomicDensity(filter_superfamily(te_gff_data, superfams_sorted[1], custom_ideogram), count_by = "number", col = "darkblue", track.height = 0.07, window.size = 1e5)
-circos.genomicDensity(filter_superfamily(te_gff_data, superfams_sorted[2], custom_ideogram), count_by = "number", col = "darkorange", track.height = 0.07, window.size = 1e5)
-# Plot Athila and CRM clades
-circos.genomicDensity(filter_clade(te_gff_data, "Athila", custom_ideogram), count_by = "number", col = "red", track.height = 0.07, window.size = 1e5)
-circos.genomicDensity(filter_clade(te_gff_data, "CRM", custom_ideogram), count_by = "number", col = "blue", track.height = 0.07, window.size = 1e5)
-# Plot gene density if gene annotation is provided
-if (!is.null(gene_gff_data)) {
-    circos.genomicDensity(filter_genes(gene_gff_data, custom_ideogram), count_by = "number", col = "black", track.height = 0.07, window.size = 1e5)
+# choose a reference scaffold to place ring labels (the longest)
+ref_sector <- custom_ideogram$chr[1]
+
+# tune window size a bit by genome scale (larger genome -> larger window)
+ws <- if (max(custom_ideogram$end) > 2e7) 2e5 else 1e5
+
+# ---- rings (outer -> inner) ----
+density_track(filter_superfamily(te_gff_data, "Gypsy_LTR_retrotransposon", custom_ideogram),
+              col_gypsy, ws, h = 0.09, label = "Gypsy",  ref_sector = ref_sector)
+
+density_track(filter_superfamily(te_gff_data, "Copia_LTR_retrotransposon", custom_ideogram),
+              col_copia, ws, h = 0.09, label = "Copia",  ref_sector = ref_sector)
+
+# top1 / top2 (exclude Gypsy/Copia already handled)
+if (length(top2) >= 1) {
+  density_track(filter_superfamily(te_gff_data, top2[1], custom_ideogram),
+                col_top1, ws, h = 0.09, label = top2[1], ref_sector = ref_sector)
 }
+if (length(top2) >= 2) {
+  density_track(filter_superfamily(te_gff_data, top2[2], custom_ideogram),
+                col_top2, ws, h = 0.09, label = top2[2], ref_sector = ref_sector)
+}
+
+density_track(filter_clade(te_gff_data, "Athila", custom_ideogram),
+              col_athila, ws, h = 0.09, label = "Athila", ref_sector = ref_sector)
+
+density_track(filter_clade(te_gff_data, "CRM", custom_ideogram),
+              col_crm, ws, h = 0.09, label = "CRM", ref_sector = ref_sector)
+
+if (!is.null(gene_gff_data)) {
+  density_track(filter_genes(gene_gff_data, custom_ideogram),
+                col_gene, ws, h = 0.09, label = "Genes", ref_sector = ref_sector)
+}
+
+# caption
+grid::grid.text("Tracks (outer -> inner): Gypsy, Copia, Top1, Top2, Athila, CRM, Genes",
+                x = grid::unit(0.5, "npc"), y = grid::unit(0.02, "npc"),
+                just = c("center", "bottom"),
+                gp = grid::gpar(cex = 0.85, fontface = "bold"))
+
+# ---- grouped legend (optional but recommended) ----
+lg_superfam <- ComplexHeatmap::Legend(title = "Superfamilies",
+                                      labels = c("Gypsy", "Copia"),
+                                      legend_gp = grid::gpar(fill = c(col_gypsy, col_copia))
+)
+lg_topfeat <- ComplexHeatmap::Legend(title = "Top feature types",
+                                     labels = c(top2[1], top2[2]),
+                                     legend_gp = grid::gpar(fill = c(col_top1, col_top2))
+)
+lg_clades <- ComplexHeatmap::Legend(title = "Clades",
+                                    labels = c("Athila", "CRM"),
+                                    legend_gp = grid::gpar(fill = c(col_athila, col_crm))
+)
+lg_genes <- ComplexHeatmap::Legend(title = "Genes",
+                                   labels = "Gene density",
+                                   legend_gp = grid::gpar(fill = col_gene)
+)
+lgd <- ComplexHeatmap::packLegend(lg_superfam, lg_topfeat, lg_clades, lg_genes,
+                                  column_gap = grid::unit(3, "mm"))
+grid::grid.text("Tracks", x = grid::unit(0.98, "npc"), y = grid::unit(0.98, "npc"),
+                just = c("right", "top"), gp = grid::gpar(fontface = "bold"))
+ComplexHeatmap::draw(lgd, x = grid::unit(0.98, "npc"), y = grid::unit(0.94, "npc"),
+                     just = c("right", "top"))
+
+# finish
 circos.clear()
 
-legend_labels <- c("Gypsy_LTR_retrotransposon", "Copia_LTR_retrotransposon", superfams_sorted[1], superfams_sorted[2], "Athila", "CRM")
-legend_colors <- c("darkgreen", "darkred", "darkblue", "darkorange", "red", "blue")
-if (!is.null(gene_gff_data)) {
-    legend_labels <- c(legend_labels, "Genes")
-    legend_colors <- c(legend_colors, "black")
-}
-
-lgd <- Legend(
-    title = "Superfamily", at = legend_labels,
-    legend_gp = gpar(fill = legend_colors)
-)
-draw(lgd, x = unit(8, "cm"), y = unit(10, "cm"), just = c("center"))
 
 dev.off()
 
