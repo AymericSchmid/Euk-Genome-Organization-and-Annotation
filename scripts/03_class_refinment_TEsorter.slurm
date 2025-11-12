@@ -26,16 +26,16 @@ mkdir -p $OUT_DIR
 
 module load $SEQKIT_MODULE
 # Extracting Copia and Gypsy sequences
-#seqkit grep -r -p "Copia" $TE_LIB > $COPIA_SEQ_FILE
-#seqkit grep -r -p "Gypsy" $TE_LIB > $GYPSY_SEQ_FILE
+seqkit grep -r -p "Copia" $TE_LIB > $COPIA_SEQ_FILE
+seqkit grep -r -p "Gypsy" $TE_LIB > $GYPSY_SEQ_FILE
 
 cd $OUT_DIR
 
 # Run TEsorter
-#apptainer exec --bind /data $TESORTER_IMG \
-#TEsorter $COPIA_SEQ_FILE -db rexdb-plant
-#apptainer exec --bind /data $TESORTER_IMG \
-#TEsorter $GYPSY_SEQ_FILE -db rexdb-plant
+apptainer exec --bind /data $TESORTER_IMG \
+TEsorter $COPIA_SEQ_FILE -db rexdb-plant
+apptainer exec --bind /data $TESORTER_IMG \
+TEsorter $GYPSY_SEQ_FILE -db rexdb-plant
 
 CLS_ALL="$OUT_DIR/te_clades.cls.tsv"
 {

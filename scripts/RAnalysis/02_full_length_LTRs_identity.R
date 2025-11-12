@@ -115,5 +115,5 @@ p_gypsy <- plot_by_clade(anno_cls, "Gypsy", global_ymax)
 # Combine with cowplot side-by-side 
 combined <- plot_grid(p_copia, p_gypsy, ncol = 2, rel_widths = c(1, 1))
 
-ggsave("01_LTR_Copia_Gypsy_cladelevel.png", combined, width = 12, height = 10, dpi = 300)
-ggsave("01_LTR_Copia_Gypsy_cladelevel.pdf", combined, width = 12, height = 10)
+ggsave("02_LTR_Copia_Gypsy_cladelevel.png", combined, width = 12, height = 10, dpi = 300)
+ggsave("02_LTR_Copia_Gypsy_cladelevel.pdf", combined, width = 12, height = 10)
