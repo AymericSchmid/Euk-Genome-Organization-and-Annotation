@@ -3,9 +3,6 @@
 # extract the LTR identity values, merge with classification data from TEsorter,
 # and generate plots showing the distribution of LTR identities per clade within
 # the Copia and Gypsy superfamilies.
-
-print("Hello")
-
 library(tidyverse)
 library(data.table)
 library(cowplot)
@@ -16,7 +13,7 @@ library(cowplot)
 args = commandArgs(trailingOnly=TRUE)
 gff_file <- args[1]
 cls_file <- args[2]
-# cls_file is the output from TEsorter on the raw LTR-RT fasta file
+
 #-------------------------------------------------
 # Read and preprocess input data
 #-------------------------------------------------
@@ -58,21 +55,48 @@ cls <- cls %>%
 # Use a left join so all annotated TEs are kept even if they have no classification match
 anno_cls <- merge(anno, cls, by = "Name", all.x = TRUE)
 
+# Small QC on x-limits
+binwidth <- 0.005
+xlims <- c(0.80, 1.00)
+outside <- anno_cls %>%
+  dplyr::filter(!is.na(Identity)) %>%
+  summarise(below = sum(Identity < xlims[1]),
+            above = sum(Identity > xlims[2]),
+            total = dplyr::n())
+message(sprintf("Identities outside plotting range: <%.2f = %d, >%.2f = %d (%.1f%% of %d).",
+                xlims[1], outside$below, xlims[2], outside$above,
+                100*(outside$below+outside$above)/outside$total, outside$total))
+
+# clade stats to order facets and show n
+inrange <- between(anno_cls$Identity, xlims[1], xlims[2])
+clade_stats <- anno_cls %>%
+  filter(Superfamily %in% c("Copia","Gypsy"), !is.na(Identity), !is.na(Clade)) %>%
+  group_by(Superfamily, Clade) %>%
+  summarise(n = sum(between(Identity, xlims[1], xlims[2])), 
+            med_id = median(Identity[between(Identity, xlims[1], xlims[2])], na.rm=TRUE),
+            .groups="drop") %>%
+  mutate(clade_lab = paste0(Clade, " (n=", n, ")"))
+
+
+# attach the label + facet order back to the main table
+anno_cls <- anno_cls %>%
+  left_join(clade_stats, by = c("Superfamily","Clade")) %>%
+  group_by(Superfamily) %>%
+  mutate(clade_lab = forcats::fct_reorder(clade_lab, med_id, .desc=TRUE)) %>%
+  ungroup()
+
+
 # Quick checks: how many per Superfamily/Clade (may be NA if classification missing)
 message("Counts per Superfamily")
 print(table(anno_cls$Superfamily, useNA = "ifany"))
 message("Counts per Clade")
 print(table(anno_cls$Clade, useNA = "ifany"))
 
+
 #-------------------------------------------------
 # Plot setup
 #-------------------------------------------------
-# binwidth controls histogram resolution around identity values 
-binwidth <- 0.005
-# x axis limits, these can be adjusted if needed, minimum identity in your data may differ
-xlims <- c(0.80, 1.00)
-
-# Compute a single y-max across ALL Copia and Gypsy clades. This ensures consistent y-axis scaling.
+# change global_ymax to per-superfamily ymax
 global_ymax <- anno_cls %>%
   filter(Superfamily %in% c("Copia", "Gypsy"), !is.na(Identity)) %>%
   # bin Identity into consistent breaks and count occurrences
@@ -80,28 +104,24 @@ global_ymax <- anno_cls %>%
   pull(n) %>%
   max(na.rm = TRUE)
 
-message("Global y-limit (shared for overview plots): ", global_ymax)
 
 #-------------------------------------------------
 # Plot function for one superfamily
 #-------------------------------------------------
 plot_by_clade <- function(df, sf, ymax) {
   df %>%
-    filter(Superfamily == sf, !is.na(Identity), !is.na(Clade)) %>%
+    dplyr::filter(Superfamily == sf, !is.na(Identity), !is.na(Clade), Identity >= xlims[1], Identity <= xlims[2]) %>%
     ggplot(aes(x = Identity)) +
-    # histogram with color coding per superfamily
-    geom_histogram(binwidth = binwidth,
-                   color = "black",
-                   fill = ifelse(sf == "Copia", "#1b9e77", "#d95f02")) +
-    # vertical stacking: one facet per Clade (ncol = 1) and fixed y scale so bars are comparable
-    facet_wrap(~Clade, ncol = 1, scales = "fixed") +
-    # x axis focused around xlims values
+    geom_histogram(binwidth = binwidth, boundary = xlims[1], closed = "right", color = "black",
+                   fill = ifelse(sf == "Copia", "#E69F00", "#009E73")) +
+    geom_vline(xintercept = c(0.95, 0.98), linetype = "dashed", linewidth = 0.3) +
+    facet_wrap(~clade_lab, ncol = 1, scales = "fixed") +   # use the new label
     scale_x_continuous(limits = xlims, breaks = seq(xlims[1], xlims[2], 0.05)) +
-    # set y limit to the provided ymax (useful for consistent overview plots)
-    scale_y_continuous(limits = c(0, ymax), expand = c(0, 0)) +  
+    scale_y_continuous(limits = c(0, ymax), expand = c(0, 0)) +
     theme_cowplot() +
     theme(strip.background = element_rect(fill = "#f0f0f0"),
           axis.text.x = element_text(angle = 45, hjust = 1),
+          strip.text = element_text(face = "bold"),
           plot.title = element_text(face = "bold", hjust = 0.5)) +
     labs(title = sf, x = "Identity", y = "Count")
 }
