@@ -39,6 +39,9 @@ grep -P "\tgene\t|\tCDS\t|\texon\t|\tfive_prime_UTR\t|\tthree_prime_UTR\t|\tmRNA
 # Check
 cut -f3 "${GFF_GENIC_ONLY}" | sort | uniq -c
 
+# Generate AED cumulative distribution file
+perl "${MAKER_BIN}/AED_cdf_generator.pl" -b 0.025 "${GFF_GENIC_ONLY}" > "${GFF_GENIC_ONLY}.AED.txt"
+
 # Make list of mRNA IDs (column 9: “ID=…”)
 grep -P '\tmRNA\t' "${GFF_GENIC_ONLY}" \
     | awk '{print $9}' \
