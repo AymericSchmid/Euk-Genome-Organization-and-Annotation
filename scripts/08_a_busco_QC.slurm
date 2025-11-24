@@ -20,6 +20,8 @@ IDS_LONGEST_PROTS=$SCRATCH/ids.prots.longest.txt
 IDS_LONGEST_TRANS=$SCRATCH/ids.trans.longest.txt
 
 OUT_BUSCO_DIR=$WORK_DIR/annotation_qc/busco
+OUT_BUSCO_PLOT_DIR=$OUT_BUSCO_DIR/plots
+ASSEMBLY_BUSCO_RESULT=/data/users/aschmid/Genome-and-Transcriptome-Assembly/assembly_QC/busco/hifiasm/short_summary.specific.brassicales_odb10.hifiasm.txt
 
 SEQKIT_MODULE=SeqKit/2.6.1
 BUSCO_MODULE=BUSCO/5.4.2-foss-2021a
@@ -48,3 +50,13 @@ cd $OUT_BUSCO_DIR
 # Run BUSCO
 busco -i $PROTEIN_FASTA_LONGEST -l brassicales_odb10 -o proteins -m proteins
 busco -i $TRANSCRIPT_FASTA_LONGEST -l brassicales_odb10 -o transcriptome -m transcriptome
+
+mkdir -p $OUT_BUSCO_PLOT_DIR
+# Copy BUSCO results for plotting
+cp $ASSEMBLY_BUSCO_RESULT $OUT_BUSCO_PLOT_DIR
+cp $OUT_BUSCO_DIR/proteins/short_summary.specific.brassicales_odb10.proteins.txt $OUT_BUSCO_PLOT_DIR
+cp $OUT_BUSCO_DIR/transcriptome/short_summary.specific.brassicales_odb10.transcriptome.txt $OUT_BUSCO_PLOT_DIR
+
+PLOT_SCRIPT=$(dirname $(which busco))/generate_plot.py
+# Plot BUSCO results
+python3 $PLOT_SCRIPT -wd $OUT_BUSCO_PLOT_DIR
