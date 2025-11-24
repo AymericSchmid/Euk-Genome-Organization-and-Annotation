@@ -15,6 +15,7 @@ MAKER_BIN="${COURSE_DIR}/softwares/Maker_v3.01.03/src/bin"
 PERL_MODULE="BioPerl/1.7.8-GCCcore-10.3.0"
 UCSC_MODULE="UCSC-Utils/448-foss-2021a"
 MARIADB_MODULE="MariaDB/10.6.4-GCC-10.3.0"
+R_MODULE=R-bundle-IBU/2023072800-foss-2021a-R-4.2.1
 
 # Input/Output files
 GFF_IN="${WORK_DIR}/gene_annotation/final/assembly.all.maker.noseq.renamed.iprscan.gff"
@@ -26,9 +27,10 @@ PROTEIN_FASTA="${WORK_DIR}/gene_annotation/final/assembly.all.maker.proteins.ren
 TRANSCRIPT_FASTA_OUT="${WORK_DIR}/gene_annotation/final/assembly.all.maker.transcripts.renamed.filtered.fasta"
 PROTEIN_FASTA_OUT="${WORK_DIR}/gene_annotation/final/assembly.all.maker.proteins.renamed.filtered.fasta"
 
-module load "${PERL_MODULE}"
-module load "${UCSC_MODULE}"
-module load "${MARIADB_MODULE}"
+module load $PERL_MODULE
+module load $UCSC_MODULE
+module load $MARIADB_MODULE
+module load $R_MODULE 
 
 # Filter by AED / InterProScan
 perl "${MAKER_BIN}/quality_filter.pl" -s "${GFF_IN}" > "${GFF_FILTERED_OUT}"
@@ -52,5 +54,7 @@ grep -P '\tmRNA\t' "${GFF_GENIC_ONLY}" \
 # Subset transcripts & proteins (faSomeRecords)
 faSomeRecords "${TRANSCRIPT_FASTA}" "${MRNA_ID_LIST}" "${TRANSCRIPT_FASTA_OUT}"
 faSomeRecords "${PROTEIN_FASTA}"    "${MRNA_ID_LIST}" "${PROTEIN_FASTA_OUT}"
+
+Rscript $WORK_DIR/scripts/RAnalysis/07_iprscan_summary.R $GFF_FILTERED_OUT 
 
 echo "Done."

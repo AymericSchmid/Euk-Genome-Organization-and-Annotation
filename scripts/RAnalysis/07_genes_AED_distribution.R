@@ -32,5 +32,5 @@ p2 <- ggplot(aed, aes(x = AED, y = cumulative_fraction)) +
         x = "Annotation Edit Distance (AED)",
         y = "Cumulative proportion of genes")
 
-combined <- plot_grid(p1, p2, ncol = 1, rel_heights = c(1, 1))
-ggsave(plot_file, combined, width = 6, height = 10)
+combined <- plot_grid(p1, p2, ncol = 2, rel_widths = c(1, 1))
+ggsave(plot_file, combined, width = 12, height = 6)
