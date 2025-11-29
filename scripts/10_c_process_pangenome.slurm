@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# =============================================================================
+# Script: 10_c_process_pangenome.slurm
+# Purpose: Process pangenome data from GENESPACE to calculate core, accessory,
+#          and species-specific genes and generate frequency plots
+# =============================================================================
 
 #SBATCH --cpus-per-task=4
 #SBATCH --mem-per-cpu=16G
@@ -17,7 +22,10 @@ OUT_PLOT_FILE=10_c_pangenome_frequency_plot.pdf
 R_SCRIPT=$WORK_DIR/scripts/RAnalysis/10_c_process_pangenome.R
 R_MODULE=R-bundle-IBU/2023072800-foss-2021a-R-4.2.1
 
+# Load R Module
 module load $R_MODULE
 
 cd $OUT_DIR
+
+# Run R script to process pangenome data and generate frequency plots
 Rscript $R_SCRIPT $GENESPACE_WORK_DIR Ms_0 $OUT_PLOT_FILE

@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# =============================================================================
+# Script: 04_visualize_TE_distribution.slurm
+# Purpose: Visualize the distribution of transposable elements across the
+#          genome using circular plots (circlize)
+# =============================================================================
 
 #SBATCH --cpus-per-task=1
 #SBATCH --mem-per-cpu=16G
@@ -17,15 +22,18 @@ R_MODULE=R-bundle-IBU/2023072800-foss-2021a-R-4.2.1
 SAMTOOLS_IMG=/containers/apptainer/samtools-1.19.sif 
 OUT_FILE=04_TE_distribution.pdf
 
+# Create Output Directory
 mkdir -p $PLOT_DIR
 
-# Indexing assembly
+# Index Assembly (Required for R Script)
+# Create FASTA index file (.fai) needed for the visualization script
 apptainer exec --bind /data $SAMTOOLS_IMG \
 samtools faidx $ASSEMBLY
 
 module load $R_MODULE 
 cd $PLOT_DIR
 
-# Creating plots through R script
+# Run R script to create circular plot showing TE distribution
+# Arguments: assembly index, TE annotation GFF, output PDF filename
 Rscript $WORK_DIR/scripts/RAnalysis/04_annotation_circlize.R \
 $ASSEMBLY_FAI $TE_ANNOTATION $OUT_FILE

@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# =============================================================================
+# Script: 08_b_AGAT_annotation_stats.slurm
+# Purpose: Generate comprehensive statistics for gene annotation using AGAT
+#          (Another GFF Analysis Toolkit)
+# =============================================================================
 
 #SBATCH --cpus-per-task=4
 #SBATCH --mem-per-cpu=16G
@@ -16,8 +21,10 @@ OUT_FILE=$OUT_DIR/filtered.genes.renamed.gff.stat
 
 AGAT_IMG=/containers/apptainer/agat-1.2.0.sif
 
+# Create Output Directory
 mkdir -p $OUT_DIR
 
+# Run AGAT to generate comprehensive annotation statistics
 apptainer exec \
     --bind /data \
     $AGAT_IMG \

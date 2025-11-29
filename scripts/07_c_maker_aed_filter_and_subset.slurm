@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# =============================================================================
+# Script: 07_c_maker_aed_filter_and_subset.slurm
+# Purpose: Filter gene annotations by quality (AED score and InterProScan),
+#          extract genic features only, and subset FASTA files to filtered genes
+# =============================================================================
 
 #SBATCH --cpus-per-task=8
 #SBATCH --mem-per-cpu=32G
@@ -27,34 +32,39 @@ PROTEIN_FASTA="${WORK_DIR}/gene_annotation/final/assembly.all.maker.proteins.ren
 TRANSCRIPT_FASTA_OUT="${WORK_DIR}/gene_annotation/final/assembly.all.maker.transcripts.renamed.filtered.fasta"
 PROTEIN_FASTA_OUT="${WORK_DIR}/gene_annotation/final/assembly.all.maker.proteins.renamed.filtered.fasta"
 
+# Load Required Modules
 module load $PERL_MODULE
 module load $UCSC_MODULE
 module load $MARIADB_MODULE
 module load $R_MODULE 
 
-# Filter by AED / InterProScan
+# Filter genes based on AED (Annotation Edit Distance) score and InterProScan
+# annotations. Lower AED scores indicate better annotation quality.
 perl "${MAKER_BIN}/quality_filter.pl" -s "${GFF_IN}" > "${GFF_FILTERED_OUT}"
 
-# Keep only gene-related features
+# Keep only gene-related features (genes, mRNAs, CDS, exons, UTRs)
+# Remove other features like repeats, TEs, etc.
 grep -P "\tgene\t|\tCDS\t|\texon\t|\tfive_prime_UTR\t|\tthree_prime_UTR\t|\tmRNA\t" "${GFF_FILTERED_OUT}" > "${GFF_GENIC_ONLY}"
   
-# Check
+# Check feature type counts
 cut -f3 "${GFF_GENIC_ONLY}" | sort | uniq -c
 
-# Generate AED cumulative distribution file
+# Create cumulative distribution file for AED scores
 perl "${MAKER_BIN}/AED_cdf_generator.pl" -b 0.025 "${GFF_GENIC_ONLY}" > "${GFF_GENIC_ONLY}.AED.txt"
 
-# Make list of mRNA IDs (column 9: “ID=…”)
+# Create list of mRNA IDs from filtered GFF file
+# Extract ID from attributes column (column 9)
 grep -P '\tmRNA\t' "${GFF_GENIC_ONLY}" \
     | awk '{print $9}' \
     | cut -d ';' -f1 \
     | sed 's/ID=//g' \
     > "${MRNA_ID_LIST}"
 
-# Subset transcripts & proteins (faSomeRecords)
+# Extract sequences for filtered mRNAs from transcript and protein FASTA files
 faSomeRecords "${TRANSCRIPT_FASTA}" "${MRNA_ID_LIST}" "${TRANSCRIPT_FASTA_OUT}"
 faSomeRecords "${PROTEIN_FASTA}"    "${MRNA_ID_LIST}" "${PROTEIN_FASTA_OUT}"
 
+# Generate InterProScan Summary Statistics
 Rscript $WORK_DIR/scripts/RAnalysis/07_iprscan_summary.R $GFF_FILTERED_OUT 
 
 echo "Done."

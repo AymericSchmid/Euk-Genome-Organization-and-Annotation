@@ -1,64 +1,74 @@
+# =============================================================================
+# Script: 05_plot_div.R
+# Purpose: Generate TE divergence landscape plot showing the distribution of
+#          transposable element sequences by divergence percentage from consensus.
+#          Plots sequence amount (Mbp) rather than counts to account for
+#          fragmented TEs due to nested insertions and deletions.
+# =============================================================================
+
+# Load required libraries
 library(reshape2)
-# library(hrbrthemes)
 library(tidyverse)
 library(data.table)
 
+# Parse command line arguments
+args <- commandArgs(trailingOnly = TRUE)
+data <- args[1]  # Input file: divergence landscape table from parseRM.pl
 
-# get data from parameter
-args = commandArgs(trailingOnly=TRUE)
-data <- args[1]
-#data <- "assembly.fasta.mod.EDTA.anno/assembly.fasta.mod.out.landscape.Div.Rname.tab"
-
+# Read divergence landscape data
 rep_table <- fread(data, header = FALSE, sep = "\t")
-rep_table %>% head()
-# How does the data look like?
 
+# Set column names: Rname, Rclass, Rfam, and divergence bins (1-50%)
 colnames(rep_table) <- c("Rname", "Rclass", "Rfam", 1:50)
+
+# Filter out unknown families
 rep_table <- rep_table %>% filter(Rfam != "unknown")
+
+# Create combined family label (Class/Family)
 rep_table$fam <- paste(rep_table$Rclass, rep_table$Rfam, sep = "/")
 
-table(rep_table$fam)
-# How many elements are there in each Superfamily?
-
+# Reshape data from wide to long format
 rep_table.m <- melt(rep_table)
 
-rep_table.m <- rep_table.m[-c(which(rep_table.m$variable == 1)), ] # remove the peak at 1, as the library sequences are copies in the genome, they inflate this low divergence peak
+# Remove peak at divergence = 1% (library sequences are copies in the genome,
+# which inflate this low divergence peak)
+rep_table.m <- rep_table.m[-c(which(rep_table.m$variable == 1)), ]
 
-# Arrange the data so that they are in the following order:
-# LTR/Copia, LTR/Gypsy, all types of DNA transposons (TIR transposons), DNA/Helitron, all types of MITES
+# Set factor levels for proper ordering in plot
+# Order: LTR/Copia, LTR/Gypsy, DNA transposons, Helitron, MITEs
 rep_table.m$fam <- factor(rep_table.m$fam, levels = c(
-  "LTR/Copia", "LTR/Gypsy", "DNA/DTA", "DNA/DTC", "DNA/DTH", "DNA/DTM", "DNA/DTT", "DNA/Helitron",
+  "LTR/Copia", "LTR/Gypsy", 
+  "DNA/DTA", "DNA/DTC", "DNA/DTH", "DNA/DTM", "DNA/DTT", "DNA/Helitron",
   "MITE/DTA", "MITE/DTC", "MITE/DTH", "MITE/DTM"
 ))
 
-# NOTE: Check that all the superfamilies in your dataset are included above
+# Convert divergence from percentage to decimal (variable is percent divergence)
+rep_table.m$distance <- as.numeric(rep_table.m$variable) / 100
 
-rep_table.m$distance <- as.numeric(rep_table.m$variable) / 100 # as it is percent divergence
-
-# Question:
-# rep_table.m$age <- ??? # Calculate using the substitution rate and the formula provided in the tutorial
-
-
-# options(scipen = 999)
-
-# remove helitrons as EDTA is not able to annotate them properly (https://github.com/oushujun/EDTA/wiki/Making-sense-of-EDTA-usage-and-outputs---Q&A)
+# Remove Helitrons as EDTA cannot annotate them properly
+# Reference: https://github.com/oushujun/EDTA/wiki/Making-sense-of-EDTA-usage-and-outputs---Q&A
 rep_table.m <- rep_table.m %>% filter(fam != "DNA/Helitron")
 
-pdf(NULL)   # disables the implicit Rplots.pdf device
+# Disable implicit Rplots.pdf device
+pdf(NULL)
+
+# Create divergence landscape plot
+# Weight by sequence amount (Mbp) rather than counts to account for fragmented TEs
 ggplot(rep_table.m, aes(fill = fam, x = distance, weight = value / 1000000)) +
   geom_bar() +
   cowplot::theme_cowplot() +
   scale_fill_brewer(palette = "Paired") +
   xlab("Distance") +
   ylab("Sequence (Mbp)") +
-  theme(axis.text.x = element_text(angle = 90, vjust = 1, size = 9, hjust = 1), plot.title = element_text(hjust = 0.5))
+  theme(
+    axis.text.x = element_text(angle = 90, vjust = 1, size = 9, hjust = 1), 
+    plot.title = element_text(hjust = 0.5)
+  )
 
-ggsave(filename = "05_TE_divergence_landscape.pdf", width = 10, height = 5, useDingbats = F)
+# Save plot
+ggsave(filename = "05_TE_divergence_landscape.pdf", width = 10, height = 5, useDingbats = FALSE)
 
-
-
-# Why is it important to have this plot in Mbp instead of counts? 
-# Hint: 
-# Consider a scenario where there is a lot of small fragments of TEs due to nested insertions and deletions.
-# How would that affect the plot if you used counts instead of Mbp?
-#
+# Note: Why plot in Mbp instead of counts?
+# Consider a scenario with many small TE fragments due to nested insertions and deletions.
+# Using counts would over-represent these fragments, while using Mbp (sequence amount)
+# provides a more accurate representation of the actual TE content in the genome.

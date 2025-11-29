@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# =============================================================================
+# Script: 10_b_genespace_run.slurm
+# Purpose: Run GENESPACE for comparative genomics analysis to identify
+#          syntenic orthologs and generate pangenome data
+# =============================================================================
 
 #SBATCH --cpus-per-task=8
 #SBATCH --mem-per-cpu=32G
@@ -17,6 +22,8 @@ R_SCRIPT=$WORK_DIR/scripts/RAnalysis/10_b_run_genespace.R
 MCSCANX_PATH=$COURSE_DIR/softwares/MCScanX
 
 cd $GENESPACE_WORK_DIR
+
+# Execute GENESPACE R script in Apptainer container
 apptainer exec --bind /data --bind $SCRATCH:/temp \
     $GENESPACE_IMG Rscript \
     $R_SCRIPT $GENESPACE_WORK_DIR $MCSCANX_PATH

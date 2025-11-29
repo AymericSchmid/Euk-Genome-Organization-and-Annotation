@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# =============================================================================
+# Script: 02_LTRRT_identity_clade_analysis.slurm
+# Purpose: Classify full-length LTR retrotransposons (LTR-RTs) into clades using
+#          TEsorter and visualize their identity distribution by clade
+# =============================================================================
 
 #SBATCH --cpus-per-task=4
 #SBATCH --mem-per-cpu=16G
@@ -17,19 +22,22 @@ TESORTER_IMG=/data/courses/assembly-annotation-course/CDS_annotation/containers/
 R_MODULE=R-bundle-IBU/2023072800-foss-2021a-R-4.2.1
 TSV_FILE=$OUT_DIR/assembly.fa.mod.LTR.raw.fa.rexdb-plant.cls.tsv
 
+# Create Output Directories
 mkdir -p $PLOT_DIR
 mkdir -p $OUT_DIR
 
 cd $OUT_DIR
 
-# Refining TE classification for full length LTR-RTs and split them into Clades
+# Run TEsorter to classify full-length LTR-RTs into clades
 apptainer exec --bind /data $TESORTER_IMG \
 TEsorter \
 $LTRRT_LIBRARY -db rexdb-plant
 
 cd $PLOT_DIR
 
-# Plot the number of LTR-RTs in each clade with their corresponding percent identity
+# Load R module and run visualization script
+# The script plots the number of LTR-RTs in each clade with their corresponding
+# percent identity values
 module load $R_MODULE 
 Rscript $WORK_DIR/scripts/RAnalysis/02_full_length_LTRs_identity.R \
-$LTRRT_ANNOTATION $TSV_FILE \
+$LTRRT_ANNOTATION $TSV_FILE

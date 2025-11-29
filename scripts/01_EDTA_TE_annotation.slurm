@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# =============================================================================
+# Script: 01_EDTA_TE_annotation.slurm
+# Purpose: Annotate transposable elements (TEs) in the genome using EDTA
+#          (Extensive de-novo TE Annotator)
+# =============================================================================
 
 #SBATCH --cpus-per-task=20
 #SBATCH --mem-per-cpu=16G
@@ -14,8 +19,10 @@ EDTA_IMG=/data/courses/assembly-annotation-course/CDS_annotation/containers/EDTA
 ASSEMBLY=$WORK_DIR/assembly/assembly.fa
 CDS_FILE=/data/courses/assembly-annotation-course/CDS_annotation/data/TAIR10_cds_20110103_representative_gene_model_updated
 
+# Create Output Directory
 mkdir -p $OUT_DIR
 
+# Change to output directory (EDTA writes output to current directory)
 cd $OUT_DIR
 
 apptainer exec --bind /data $EDTA_IMG \

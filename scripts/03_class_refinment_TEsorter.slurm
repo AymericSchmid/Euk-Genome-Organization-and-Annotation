@@ -1,4 +1,10 @@
 #!/usr/bin/env bash
+# =============================================================================
+# Script: 03_class_refinment_TEsorter.slurm
+# Purpose: Refine TE classification by extracting Copia and Gypsy sequences,
+#          classifying them into clades using TEsorter, and appending clade
+#          information to the TE annotation GFF file
+# =============================================================================
 
 #SBATCH --cpus-per-task=4
 #SBATCH --mem-per-cpu=16G
@@ -16,38 +22,49 @@ OUT_DIR=$WORK_DIR/TE_annotation
 COPIA_SEQ_FILE=$OUT_DIR/Copia_sequences.fa
 GYPSY_SEQ_FILE=$OUT_DIR/Gypsy_sequences.fa
 
+# Expected TEsorter output file names
 COPIA_CLS="${COPIA_SEQ_FILE##*/}.rexdb-plant.cls.tsv"
 GYPSY_CLS="${GYPSY_SEQ_FILE##*/}.rexdb-plant.cls.tsv"
 
+# Software modules and containers
 SEQKIT_MODULE=SeqKit/2.6.1
 TESORTER_IMG=/data/courses/assembly-annotation-course/CDS_annotation/containers/TEsorter_1.3.0.sif
 
 mkdir -p $OUT_DIR
 
 module load $SEQKIT_MODULE
-# Extracting Copia and Gypsy sequences
+
+# Extract all sequences containing "Copia" in their name or description
 seqkit grep -r -p "Copia" $TE_LIB > $COPIA_SEQ_FILE
+
+# Extract all sequences containing "Gypsy" in their name or description
 seqkit grep -r -p "Gypsy" $TE_LIB > $GYPSY_SEQ_FILE
 
 cd $OUT_DIR
 
-# Run TEsorter
+# Classify Copia sequences into clades
 apptainer exec --bind /data $TESORTER_IMG \
 TEsorter $COPIA_SEQ_FILE -db rexdb-plant
+
+# Classify Gypsy sequences into clades
 apptainer exec --bind /data $TESORTER_IMG \
 TEsorter $GYPSY_SEQ_FILE -db rexdb-plant
 
+# Merge Classification Results
 CLS_ALL="$OUT_DIR/te_clades.cls.tsv"
+# Combine header from Copia file with data from both files (skip header from Gypsy)
 {
   head -n 1 "$COPIA_CLS"
   tail -n +2 "$COPIA_CLS"
   tail -n +2 "$GYPSY_CLS"
 } > "$CLS_ALL"
 
-# Append order/superfamily/clade to EDTA GFF using awk
+# Append Clade Information to TE Annotation GFF
+# Use awk to read the classification table and append clade information
+# to the TE annotation GFF file attributes column
 awk -F'\t' -v OFS='\t' -v CLS="$CLS_ALL" '
 BEGIN{
-  # Read TEsorter table
+  # Read TEsorter classification table into memory
   while ((getline line < CLS) > 0) {
     if (line ~ /^[[:space:]]*$/) continue
     split(line, f, "\t")
@@ -61,7 +78,6 @@ BEGIN{
   }
   close(CLS)
 }
-# Keep comment lines
 /^#/ { print; next }
 
 {
@@ -73,7 +89,7 @@ BEGIN{
 
   add = ";clade="
   if (teid != "" && (teid in SF)) {
-    # Append new annotations, preserving existing attributes
+    # Append clade annotation, preserving existing attributes
     add = add CLA[teid]
   }
   attrs = attrs add

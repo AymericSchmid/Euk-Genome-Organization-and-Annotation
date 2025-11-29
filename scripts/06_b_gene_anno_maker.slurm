@@ -1,4 +1,10 @@
 #!/usr/bin/env bash
+# =============================================================================
+# Script: 06_b_gene_anno_maker.slurm
+# Purpose: Run MAKER gene annotation pipeline using MPI for parallel processing
+#          This is the main gene annotation step that combines evidence from
+#          multiple sources (protein homology, ESTs, ab initio predictions)
+# =============================================================================
 
 #SBATCH --time=7-0
 #SBATCH --mem=120G
@@ -15,13 +21,17 @@ REPEATMASKER_DIR="/data/courses/assembly-annotation-course/CDS_annotation/softwa
 OUT_DIR=$WORK_DIR/gene_annotation
 MAKER_IMG=/data/courses/assembly-annotation-course/CDS_annotation/containers/MAKER_3.01.03.sif
 
+# Environment Setup
+# Add RepeatMasker to PATH (required by MAKER)
 export PATH=$PATH:$REPEATMASKER_DIR
 
 cd $OUT_DIR
 
+# Load required modules
 module load OpenMPI/4.1.1-GCC-10.3.0
 module load AUGUSTUS/3.4.0-foss-2021a
 
+# Run MAKER using MPI for parallel processing
 mpiexec --oversubscribe -n 50 apptainer exec \
 --bind $SCRATCH:/TMP --bind $COURSE_DIR --bind $AUGUSTUS_CONFIG_PATH --bind $REPEATMASKER_DIR --bind /data \
 $MAKER_IMG \

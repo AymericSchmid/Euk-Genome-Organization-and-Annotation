@@ -1,25 +1,30 @@
+# =============================================================================
+# Script: 10_c_process_pangenome.R
+# Purpose: Process pangenome data from GENESPACE to calculate core, accessory,
+#          and species-specific genes. Generates frequency plots showing the
+#          distribution of orthogroups and genes across genomes.
+# =============================================================================
+
+# Load required libraries
 library(tidyverse)
 library(readr)
 
-# -----------------
-# 0) Inputs
-# -----------------
+# Parse command line arguments
 args <- commandArgs(trailingOnly = TRUE)
-wd <- args[1] # set your working directory where the pangenome_matrix.rds is located
-focal_genome <- args[2] # Your focal accession name
-out_plot <- args[3] # output plot file path
+wd <- args[1]           # Working directory where pangenome_matrix.rds is located
+focal_genome <- args[2] # Focal accession name for analysis
+out_plot <- args[3]     # Output plot file path
+
+# Load pangenome matrix from GENESPACE output
 pangenome <- readRDS(file.path(wd, "pangenome_matrix.rds"))
 
-# genome columns are list-columns produced by query_pangenes()
+# Identify genome columns (list-columns produced by query_pangenes())
 genome_cols <- names(pangenome)[sapply(pangenome, is.list)]
 
-# Check that the genomes are as expected
-genome_cols
-
+# Convert to tibble for easier manipulation
 pg <- as_tibble(pangenome)
 
-
-# Remove out-of-synteny genes (IDs ending with '*') from all genome list-columns
+# Function to clean gene lists: remove out-of-synteny genes (IDs ending with '*')
 clean_gene_list <- function(v) {
   if (is.null(v) || length(v) == 0) {
     return(character(0))
@@ -27,15 +32,15 @@ clean_gene_list <- function(v) {
   v <- as.character(v)
   v <- v[!is.na(v)]
   v <- trimws(v)
-  v <- v[!grepl("\\*$", v)] # drop genes ending with '*'
+  v <- v[!grepl("\\*$", v)]  # Drop genes ending with '*' (out-of-synteny)
   unique(v)
 }
 
+# Clean gene lists in all genome columns
 pg <- pg %>%
   mutate(across(all_of(genome_cols), ~ lapply(.x, clean_gene_list)))
 
 # Remove orthogroups that are now empty in ALL genomes after cleaning
-# (i.e., all genome columns have length 0)
 pg <- pg %>%
   rowwise() %>%
   filter(
@@ -43,18 +48,8 @@ pg <- pg %>%
   ) %>%
   ungroup()
 
-
-# Check the pangenome table
-head(pg)
-
-
-# How many orthogroups are there?
-nrow(pg)
-
-# -----------------
-# 1) Presence/absence per genome (orthogroup-level)
-#    TRUE if the cell has a non-empty list of gene IDs
-# -----------------
+# Create presence/absence table (orthogroup-level)
+# TRUE if the cell has a non-empty list of gene IDs
 presence_tbl <- pg %>%
   transmute(
     pgID,
@@ -65,13 +60,7 @@ presence_tbl <- pg %>%
     )
   )
 
-# Check the presence table
-head(presence_tbl)
-
-
-# -----------------
-# 2) Global orthogroup flags
-# -----------------
+# Calculate global orthogroup flags
 n_genomes <- length(genome_cols)
 
 pg_flags <- presence_tbl %>%
@@ -109,14 +98,8 @@ pg_flags <- presence_tbl %>%
     )
   )
 
-# Check the flags table
-head(data.frame(pg_flags))
-table(pg_flags$category)
-
-# -----------------
-# 3) GENE counts per orthogroup × genome
-#    convert list entries to integer counts = number of unique gene IDs
-# -----------------
+# Calculate gene counts per orthogroup × genome
+# Convert list entries to integer counts (number of unique gene IDs)
 count_genes <- function(gene_list) {
   if (is.null(gene_list) || length(gene_list) == 0) {
     return(0)
@@ -125,7 +108,7 @@ count_genes <- function(gene_list) {
   length(unique(gene_list))
 }
 
-# Apply the function to all genome columns
+# Apply count function to all genome columns
 gene_counts_matrix <- pg %>%
   select(pgID, all_of(genome_cols)) %>%
   mutate(across(
@@ -133,13 +116,7 @@ gene_counts_matrix <- pg %>%
     ~ sapply(.x, count_genes)
   ))
 
-# Check the gene counts matrix
-head(gene_counts_matrix)
-
-# -----------------
-# 4) GENE counts per genome & category
-# -----------------
-# add category to the matrix
+# Calculate gene counts per genome and category
 gene_counts_w_cat <- pg_flags %>%
   select(pgID, category) %>%
   left_join(gene_counts_matrix, by = "pgID")
@@ -155,7 +132,7 @@ gene_totals <- gene_by_cat %>%
   group_by(genome) %>%
   summarise(gene_total = sum(gene_count), .groups = "drop")
 
-# spread categories for a per-genome wide table
+# Create per-genome summary table with categories
 gene_counts_per_genome <- gene_by_cat %>%
   pivot_wider(names_from = category, values_from = gene_count, values_fill = 0) %>%
   rename(
@@ -170,46 +147,37 @@ gene_counts_per_genome <- gene_by_cat %>%
     percent_specific = round(100 * gene_specific / pmax(gene_total, 1), 2)
   )
 
-# Check the gene counts per genome
-head(data.frame(gene_counts_per_genome))
 
-
-# -----------------
-# 5) Pangenome frequency plot: OGs and genes in n genomes
-# -----------------
-
-#  Count orthogroups by number of genomes they're present in
+# Create pangenome frequency plot: orthogroups and genes present in n genomes
+# Count orthogroups by number of genomes they're present in
 og_freq <- pg_flags %>%
   count(n_present, name = "count") %>%
   mutate(type = "Orthogroups")
 
-# Count gene, how many present in orthogroups present in n genomes
-# Create a long table of (pgID, genome, gene) and attach the orthogroup-level n_present
+# Create long table of (pgID, genome, gene) and attach orthogroup-level n_present
 all_genes_with_presence <- pg %>%
   select(pgID, all_of(genome_cols)) %>%
   pivot_longer(cols = all_of(genome_cols), names_to = "genome", values_to = "genes_list") %>%
-  # drop empty/null lists
+  # Drop empty/null lists
   filter(!sapply(genes_list, is.null) & sapply(genes_list, length) > 0) %>%
   unnest_longer(genes_list) %>%
   rename(gene = genes_list) %>%
   filter(!is.na(gene)) %>%
   mutate(gene = as.character(gene)) %>%
-  distinct(pgID, genome, gene) %>% # one row per distinct gene occurrence in a pgID/genome
+  distinct(pgID, genome, gene) %>%  # One row per distinct gene occurrence in a pgID/genome
   left_join(select(pg_flags, pgID, n_present), by = "pgID")
 
-
-
-# Count genes by the n_present of their orthogroup.
-# This counts unique gene × orthogroup occurrences.
+# Count genes by the n_present of their orthogroup
+# This counts unique gene × orthogroup occurrences
 gene_freq <- all_genes_with_presence %>%
-  distinct(pgID, gene, n_present) %>% # unique gene in each orthogroup
+  distinct(pgID, gene, n_present) %>%  # Unique gene in each orthogroup
   count(n_present, name = "count") %>%
   mutate(type = "Genes")
 
-# Combine both
+# Combine orthogroup and gene frequency data
 freq_data <- bind_rows(og_freq, gene_freq)
 
-# Plot with better formatting
+# Create frequency plot
 ggplot(freq_data, aes(x = n_present, y = count, fill = type)) +
   geom_col(position = "dodge", alpha = 0.8, width = 0.7) +
   scale_x_continuous(
@@ -232,9 +200,10 @@ ggplot(freq_data, aes(x = n_present, y = count, fill = type)) +
     plot.title = element_text(face = "bold")
   )
 
+# Save plot
 ggsave(file.path(out_plot), width = 10, height = 6)
 
-# Summary table
+# Create and print summary table
 freq_summary <- freq_data %>%
   pivot_wider(names_from = type, values_from = count, values_fill = 0) %>%
   mutate(

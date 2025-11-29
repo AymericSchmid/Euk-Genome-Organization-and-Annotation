@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# =============================================================================
+# Script: 06_c_maker_output_prep.slurm
+# Purpose: Merge MAKER output files from distributed datastore into single
+#          GFF and FASTA files for downstream analysis
+# =============================================================================
 
 #SBATCH --cpus-per-task=4
 #SBATCH --mem-per-cpu=16G
@@ -18,9 +23,15 @@ OUT_DIR=$WORK_DIR/gene_annotation
 OUT_ALL_GFF=$OUT_DIR/assembly.all.maker.gff
 OUT_NOSEQ_ALL_GFF=$OUT_DIR/assembly.all.maker.noseq.gff
 
+# Create Output Directory
 mkdir -p $OUT_DIR
 cd $OUT_DIR
 
+# Merge GFF files with sequences included
 $MAKER_BIN/gff3_merge -s -d $DATASTORE_INDEX_LOG > $OUT_ALL_GFF
+
+# Merge GFF files without sequences (smaller file, faster for some analyses)
 $MAKER_BIN/gff3_merge -n -s -d $DATASTORE_INDEX_LOG > $OUT_NOSEQ_ALL_GFF
+
+# Merge FASTA files (proteins and transcripts)
 $MAKER_BIN/fasta_merge -d $DATASTORE_INDEX_LOG -o assembly

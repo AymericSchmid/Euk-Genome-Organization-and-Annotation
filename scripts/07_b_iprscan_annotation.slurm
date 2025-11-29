@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# =============================================================================
+# Script: 07_b_iprscan_annotation.slurm
+# Purpose: Annotate protein sequences with functional domains using InterProScan
+#          and update GFF file with annotation information
+# =============================================================================
 
 #SBATCH --cpus-per-task=4
 #SBATCH --mem-per-cpu=16G
@@ -21,9 +26,10 @@ PROTEIN_FILE=$WORK_DIR/gene_annotation/final/assembly.all.maker.proteins.renamed
 GFF_FILE_IN=$WORK_DIR/gene_annotation/final/assembly.all.maker.noseq.renamed.gff
 GFF_FILE_OUT=$WORK_DIR/gene_annotation/final/assembly.all.maker.noseq.renamed.iprscan.gff
 
+# Create Output Directory
 mkdir -p $OUT_IPRSCAN_DIR
 
-# InterProScan to annotate protein sequences with functional domains, such as those from the Pfam database
+# Annotate protein sequences with functional domains (Pfam, GO terms, IPR)
 apptainer exec \
     --bind $IPRSCAN_DATA_DIR:/opt/interproscan/data \
     --bind /data \
@@ -34,5 +40,5 @@ apptainer exec \
     --goterms --iprlookup --seqtype p \
     -i $PROTEIN_FILE -o $OUT_IPRSCAN_DIR
 
-# Update GFF with InterProScan Results
+# Add InterProScan annotations to GFF file attributes
 $MAKER_BIN/ipr_update_gff $GFF_FILE_IN $OUT_IPRSCAN_DIR > $GFF_FILE_OUT
