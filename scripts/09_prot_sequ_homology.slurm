@@ -32,11 +32,10 @@ module load $BLAST_MODULE
 
 echo "Blastp using viridiplantae db"
 blastp -query $MAKER_PROTEINS -db $DATABASE -num_threads $SLURM_CPUS_PER_TASK -outfmt 6 -evalue 1e-5 -max_target_seqs 10 -out $BLAST_OUTPUT
-
 # Now sort the blast output to keep only the best hit per query sequence
 sort -k1,1 -k12,12g $BLAST_OUTPUT | sort -u -k1,1 --merge > ${BLAST_OUTPUT}.besthits
 
-echo "Map protein putative functins to the maker GFF and FASTA files"
+echo "Map protein putative functions to the maker GFF and FASTA files"
 # map the protein putative functions to the MAKER produced GFF3 and FASTA files
 cp $MAKER_PROTEINS $MAKER_PROTEINS_UNIPROT
 cp $GFF_GENES $GFF_GENES_UNIPROT

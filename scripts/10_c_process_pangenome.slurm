@@ -12,7 +12,8 @@ COURSE_DIR=/data/courses/assembly-annotation-course/CDS_annotation
 WORK_DIR=/data/users/aschmid/Euk-Genome-Organization-and-Annotation
 GENESPACE_WORK_DIR=$WORK_DIR/comparative_genomics
 OUT_DIR=$WORK_DIR/plots
-OUT_PLOT_FILE=10_c_pangenome_frequency_plot.pdf
+OUT_PLOT_FREQ_FILE=10_c_pangenome_frequency_plot.pdf
+OUT_PLOT_TAIR10_CONSV_FILE=10_c_tair10_conservation_plot.pdf
 
 R_SCRIPT=$WORK_DIR/scripts/RAnalysis/10_c_process_pangenome.R
 R_MODULE=R-bundle-IBU/2023072800-foss-2021a-R-4.2.1
@@ -20,4 +21,4 @@ R_MODULE=R-bundle-IBU/2023072800-foss-2021a-R-4.2.1
 module load $R_MODULE
 
 cd $OUT_DIR
-Rscript $R_SCRIPT $GENESPACE_WORK_DIR Ms_0 $OUT_PLOT_FILE
+Rscript $R_SCRIPT $GENESPACE_WORK_DIR Ms_0 $OUT_PLOT_FREQ_FILE $OUT_PLOT_TAIR10_CONSV_FILE
