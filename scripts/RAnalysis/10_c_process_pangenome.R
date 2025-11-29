@@ -11,11 +11,18 @@ library(readr)
 
 # Parse command line arguments
 args <- commandArgs(trailingOnly = TRUE)
+<<<<<<< HEAD
 wd <- args[1]           # Working directory where pangenome_matrix.rds is located
 focal_genome <- args[2] # Focal accession name for analysis
 out_plot <- args[3]     # Output plot file path
 
 # Load pangenome matrix from GENESPACE output
+=======
+wd <- args[1]
+focal_genome <- args[2] # Focal accession name
+out_freq_plot <- args[3]
+out_tair10_consv_plot <- args[4]
+>>>>>>> d5dff63a4d50eefb7fe95aeaa08ae958d29b1b43
 pangenome <- readRDS(file.path(wd, "pangenome_matrix.rds"))
 
 # Identify genome columns (list-columns produced by query_pangenes())
@@ -177,7 +184,12 @@ gene_freq <- all_genes_with_presence %>%
 # Combine orthogroup and gene frequency data
 freq_data <- bind_rows(og_freq, gene_freq)
 
+<<<<<<< HEAD
 # Create frequency plot
+=======
+pdf(NULL)  # disables the implicit Rplots.pdf device
+# Plot with better formatting
+>>>>>>> d5dff63a4d50eefb7fe95aeaa08ae958d29b1b43
 ggplot(freq_data, aes(x = n_present, y = count, fill = type)) +
   geom_col(position = "dodge", alpha = 0.8, width = 0.7) +
   scale_x_continuous(
@@ -200,8 +212,12 @@ ggplot(freq_data, aes(x = n_present, y = count, fill = type)) +
     plot.title = element_text(face = "bold")
   )
 
+<<<<<<< HEAD
 # Save plot
 ggsave(file.path(out_plot), width = 10, height = 6)
+=======
+ggsave(file.path(out_freq_plot), width = 10, height = 6)
+>>>>>>> d5dff63a4d50eefb7fe95aeaa08ae958d29b1b43
 
 # Create and print summary table
 freq_summary <- freq_data %>%
@@ -217,3 +233,54 @@ freq_summary <- freq_data %>%
   select(n_present, label, Orthogroups, Genes)
 
 print(freq_summary)
+
+
+# -----------------
+# 6) Genes shared with TAIR10
+# -----------------
+# Identify OGs containing TAIR10
+ogs_shared_tair <- gene_counts_matrix %>%
+  filter(TAIR10 > 0)
+# Count genes per genome in those OGs
+genes_shared_with_tair10 <- ogs_shared_tair %>%
+  summarise(across(all_of(genome_cols), sum)) %>%
+  pivot_longer(cols = everything(), names_to = "genome", values_to = "shared_genes")
+
+genes_tair10_summary <- gene_counts_per_genome %>%
+  select(genome, gene_total) %>%      # total genes per genome
+  left_join(genes_shared_with_tair10, by = "genome") %>%
+  mutate(
+    shared_genes = shared_genes,
+    not_shared_genes = gene_total - shared_genes
+  )
+
+plot_df <- genes_tair10_summary %>%
+  pivot_longer(cols = c(shared_genes, not_shared_genes),
+    names_to = "category",
+    values_to = "count") %>%
+  mutate(
+    category = factor(category,
+      levels = c("shared_genes", "not_shared_genes"),
+      labels = c("Shared with TAIR10", "Not shared"))
+  )
+
+ggplot(plot_df, aes(x = genome, y = count, fill = category)) +
+geom_col(color = "black", width = 0.7) +
+scale_fill_manual(values = c("Shared with TAIR10" = "#56B4E9",
+                              "Not shared" = "#E69F00")) +
+labs(
+  x = "",
+  y = "Number of genes",
+  title = "Gene conservation relative to TAIR10",
+  fill = ""
+) +
+theme_minimal(base_size = 14) +
+theme(
+  axis.text.x = element_text(angle = 45, hjust = 1),
+  legend.position = "top"
+)
+
+ggsave(file.path(out_tair10_consv_plot), width = 8, height = 6)
+
+print("Genes shared with TAIR10 per genome:")
+print(genes_tair10_summary)
