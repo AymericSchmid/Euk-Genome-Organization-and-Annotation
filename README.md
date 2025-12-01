@@ -43,11 +43,6 @@ Comprehensive annotation and analysis of transposable elements in the Ms-0 genom
 - Classification by order, superfamily, and clade
 - Divergence profiles for different TE families
 
-#### Key Findings
-- **Centromere-enriched families**: Athila and CRM clades (known centromeric TEs in Brassicaceae)
-- **LTR-RT distribution**: Copia and Gypsy superfamilies show distinct spatial patterns
-- **Divergence landscape**: Shows TE insertion history and activity periods
-
 ### Scripts
 - `01_EDTA_TE_annotation.slurm`: Main TE annotation with EDTA
 - `02_LTRRT_identity_clade_analysis.slurm`: LTR-RT classification and identity analysis
@@ -209,10 +204,7 @@ Comparative genomics analysis across five *A. thaliana* accessions to identify c
 #### Gene Counts
 - **Genes in core genome**: 111,562
 - **Species-specific genes**: 7,005
-- **Total genes across all accessions**: ~150,000+
-
-#### Per-Accession Breakdown
-Gene counts by category (core/accessory/specific) are available in the output files.
+- **Total genes across all accessions**: 138,166
 
 ### Scripts
 - `10_a_genespace_files_preparation.slurm`: Prepare BED and FASTA files for GENESPACE
@@ -225,38 +217,6 @@ Gene counts by category (core/accessory/specific) are available in the output fi
 - Pangenome distribution barplot (orthogroups and genes vs. number of genomes)
 - TAIR10 conservation plot (genes shared vs. not shared with TAIR10 per genome)
 - Per-accession gene counts table (core/accessory/specific)
-
----
-
-## 5. Synteny Analysis
-
-### Overview
-Synteny analysis between Ms-0 contigs and TAIR10 chromosomes to assess genome organization and identify potential misassemblies.
-
-### Methods
-- **Tool**: GENESPACE synteny visualization
-- **Reference**: TAIR10 chromosomes
-- **Query**: Ms-0 contigs
-
-### Results and Limitations
-
-#### Observations
-- Alignment of Ms-0 contigs to TAIR10 chromosomes shows general synteny patterns
-- Some contigs align to multiple chromosomes, suggesting potential misassemblies
-- High assembly fragmentation limits detailed synteny interpretation
-
-#### Important Limitations
-
-**Conclusions are limited due to**:
-1. **High assembly fragmentation**: Many small contigs make comprehensive synteny analysis challenging
-2. **Potential misassemblies**: Some contigs include segments from multiple chromosomes, indicating assembly artifacts
-3. **Contig-level analysis**: Without chromosome-level assembly, detailed synteny interpretation is restricted
-
-### Scripts
-- Synteny visualization is part of the GENESPACE output (generated in `10_b_genespace_run.slurm`)
-
-### Output Figures
-- Synteny plot (Ms-0 contigs aligned to TAIR10 chromosomes)
 
 ---
 
@@ -396,11 +356,9 @@ All intermediate and final annotation files are stored in organized directories:
 - **GENESPACE**: [GENESPACE GitHub Repository](https://github.com/jtlovell/GENESPACE)
 - **TEsorter**: [TEsorter GitHub Repository](https://github.com/zhangrengang/TEsorter)
 - **RepeatMasker**: [RepeatMasker Website](http://www.repeatmasker.org/)
-
-### Key Publications
-- **Lian et al. 2024**: Pangenome analysis of *Arabidopsis thaliana*
-
-### Additional Resources
 - **AUGUSTUS**: [AUGUSTUS Gene Prediction](http://augustus.gobics.de/)
 - **AGAT**: [AGAT GitHub Repository](https://github.com/NBISweden/AGAT)
 - **MCScanX**: [MCScanX GitHub Repository](https://github.com/wyp1125/MCScanX)
+
+### Key Publications
+- **Lian et al. 2024**: Pangenome analysis of *Arabidopsis thaliana*
